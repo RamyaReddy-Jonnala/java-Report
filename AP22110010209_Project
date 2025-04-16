@@ -1,0 +1,223 @@
+package schoolss;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+
+public class Schoolss extends Frame {
+    Label l1, l2, l3, l4, l5;
+    TextField tfUniID, tfSchCode, tfSchName, tfSchLocation, tfSchEmail;
+    Button btnAdd, btnUpdate, btnDelete, btnRetrieve;
+    Connection con;
+
+    Schoolss() {
+        setTitle("University School Management");
+
+        // Labels
+        l1 = new Label("University ID:");
+        l2 = new Label("School Code:");
+        l3 = new Label("School Name:");
+        l4 = new Label("School Location:");
+        l5 = new Label("School Email:");
+
+        // TextFields
+        tfUniID = new TextField();
+        tfSchCode = new TextField();
+        tfSchName = new TextField();
+        tfSchLocation = new TextField();
+        tfSchEmail = new TextField();
+
+        // Buttons
+        btnAdd = new Button("Add");
+        btnUpdate = new Button("Update");
+        btnDelete = new Button("Delete");
+        btnRetrieve = new Button("Retrieve");
+
+        // Layout
+        setLayout(null);
+
+        int xLabel = 50, xField = 200, width = 200, height = 25;
+        l1.setBounds(xLabel, 50, 120, height); tfUniID.setBounds(xField, 50, width, height);
+        l2.setBounds(xLabel, 90, 120, height); tfSchCode.setBounds(xField, 90, width, height);
+        l3.setBounds(xLabel, 130, 120, height); tfSchName.setBounds(xField, 130, width, height);
+        l4.setBounds(xLabel, 170, 120, height); tfSchLocation.setBounds(xField, 170, width, height);
+        l5.setBounds(xLabel, 210, 120, height); tfSchEmail.setBounds(xField, 210, width, height);
+
+        btnAdd.setBounds(50, 260, 100, 30);
+        btnUpdate.setBounds(160, 260, 100, 30);
+        btnDelete.setBounds(270, 260, 100, 30);
+        btnRetrieve.setBounds(380, 260, 100, 30);
+
+        add(l1); add(tfUniID);
+        add(l2); add(tfSchCode);
+        add(l3); add(tfSchName);
+        add(l4); add(tfSchLocation);
+        add(l5); add(tfSchEmail);
+        add(btnAdd); add(btnUpdate); add(btnDelete); add(btnRetrieve);
+
+        connectToDatabase();
+
+        btnAdd.addActionListener(e -> addSchool());
+        btnUpdate.addActionListener(e -> updateSchool());
+        btnDelete.addActionListener(e -> deleteSchool());
+        btnRetrieve.addActionListener(e -> retrieveSchool());
+
+        setSize(550, 350);
+        setVisible(true);
+
+        addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                try {
+                    if (con != null) con.close();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+                dispose();
+            }
+        });
+    }
+
+    private void connectToDatabase() {
+        String url = "jdbc:mysql://localhost:3306/schoolss_db?useSSL=false";
+        String user = "root";
+        String password = "radha@08";  // Masked for security
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            con = DriverManager.getConnection(url, user, password);
+            System.out.println("Connected to MySQL database successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            showMessage("Database Connection Failed!");
+        }
+    }
+
+    private boolean fieldsNotEmpty() {
+        return !tfUniID.getText().trim().isEmpty() &&
+               !tfSchCode.getText().trim().isEmpty() &&
+               !tfSchName.getText().trim().isEmpty() &&
+               !tfSchLocation.getText().trim().isEmpty() &&
+               !tfSchEmail.getText().trim().isEmpty();
+    }
+
+    private void showMessage(String message) {
+        Dialog d = new Dialog(this, "Message", true);
+        d.setLayout(new FlowLayout());
+        d.setSize(300, 100);
+        d.add(new Label(message));
+        Button ok = new Button("OK");
+        ok.addActionListener(e -> d.setVisible(false));
+        d.add(ok);
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+    }
+
+    private void clearFields() {
+        tfUniID.setText("");
+        tfSchCode.setText("");
+        tfSchName.setText("");
+        tfSchLocation.setText("");
+        tfSchEmail.setText("");
+    }
+
+    private void addSchool() {
+        if (!fieldsNotEmpty()) {
+            showMessage("Please fill all fields.");
+            return;
+        }
+
+        String query = "INSERT INTO schools (uni_id, sch_code, sch_name, sch_location, sch_email) VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement pst = con.prepareStatement(query)) {
+            pst.setString(1, tfUniID.getText());
+            pst.setString(2, tfSchCode.getText());
+            pst.setString(3, tfSchName.getText());
+            pst.setString(4, tfSchLocation.getText());
+            pst.setString(5, tfSchEmail.getText());
+            pst.executeUpdate();
+            showMessage("School Added Successfully!");
+            clearFields();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showMessage("Failed to add school!");
+        }
+    }
+
+    private void updateSchool() {
+        if (!fieldsNotEmpty()) {
+            showMessage("Please fill all fields.");
+            return;
+        }
+
+        String query = "UPDATE schools SET uni_id = ?, sch_name = ?, sch_location = ?, sch_email = ? WHERE sch_code = ?";
+        try (PreparedStatement pst = con.prepareStatement(query)) {
+            pst.setString(1, tfUniID.getText());
+            pst.setString(2, tfSchName.getText());
+            pst.setString(3, tfSchLocation.getText());
+            pst.setString(4, tfSchEmail.getText());
+            pst.setString(5, tfSchCode.getText());
+            int rows = pst.executeUpdate();
+
+            if (rows > 0) {
+                showMessage("School Updated Successfully!");
+            } else {
+                showMessage("No School Found to Update!");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showMessage("Update Failed!");
+        }
+    }
+
+    private void deleteSchool() {
+        if (tfSchCode.getText().isEmpty()) {
+            showMessage("Enter School Code to delete.");
+            return;
+        }
+
+        String query = "DELETE FROM schools WHERE sch_code = ?";
+        try (PreparedStatement pst = con.prepareStatement(query)) {
+            pst.setString(1, tfSchCode.getText());
+            int rows = pst.executeUpdate();
+
+            if (rows > 0) {
+                showMessage("School Deleted Successfully!");
+                clearFields();
+            } else {
+                showMessage("No School Found to Delete!");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showMessage("Deletion Failed!");
+        }
+    }
+
+    private void retrieveSchool() {
+        if (tfSchCode.getText().isEmpty()) {
+            showMessage("Enter School Code to retrieve.");
+            return;
+        }
+
+        String query = "SELECT * FROM schools WHERE sch_code = ?";
+        try (PreparedStatement pst = con.prepareStatement(query)) {
+            pst.setString(1, tfSchCode.getText());
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    tfUniID.setText(rs.getString("uni_id"));
+                    tfSchName.setText(rs.getString("sch_name"));
+                    tfSchLocation.setText(rs.getString("sch_location"));
+                    tfSchEmail.setText(rs.getString("sch_email"));
+                    showMessage("School Retrieved Successfully!");
+                } else {
+                    showMessage("No School Found!");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showMessage("Retrieve Failed!");
+        }
+    }
+
+    public static void main(String[] args) {
+        new Schoolss();
+    }
+}
